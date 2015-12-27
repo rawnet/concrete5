@@ -10,6 +10,8 @@ use Concrete\Core\File\Image\Thumbnail\Type\Type;
 use Concrete\Core\File\Image\Thumbnail\Type\Version as ThumbnailTypeVersion;
 use Concrete\Core\File\Type\TypeList as FileTypeList;
 use Concrete\Core\Http\FlysystemFileResponse;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Criteria;
 use League\Flysystem\AdapterInterface;
 use League\Flysystem\FileNotFoundException;
 use Core;
@@ -47,6 +49,11 @@ class Version
     const UT_EXTENDED_ATTRIBUTE = 5;
     const UT_CONTENTS = 6;
     const UT_RENAME = 7;
+
+    public function __construct()
+    {
+        $this->attributes = new ArrayCollection();
+    }
 
     /**
      * /* @Id
@@ -103,6 +110,16 @@ class Version
      * @Column(type="string", nullable=true)
      */
     protected $fvExtension = null;
+
+    /**
+     * @OneToMany(targetEntity="\Concrete\Core\Entity\File\Attribute",  mappedBy="version")
+     * @JoinColumns({
+     *   @JoinColumn(name="fID", referencedColumnName="fID"),
+     *   @JoinColumn(name="fvID", referencedColumnName="fvID")
+     * })
+     */
+    protected $attributes = null;
+
     /**
      * @Column(type="integer")
      */
@@ -120,8 +137,6 @@ class Version
      */
     protected $fvHasDetailThumbnail = false;
 
-    // Update type constants
-    protected $attributes = array();
 
     public static function add(\Concrete\Core\File\File $file, $filename, $prefix, $data = array())
     {
@@ -221,7 +236,9 @@ class Version
 
         $controller = $ak->getController();
         $controller->setAttributeKey($ak);
-        $value = $controller->saveValue($value);
+        if (!($value instanceof Vaklue)) {
+            $value = $controller->saveValue($value);
+        }
         $orm->persist($value);
         $orm->flush();
 
@@ -263,6 +280,7 @@ class Version
         $fo->reindex();
     }
 
+    /*
     public function getAttributeValueObject($ak, $createIfNotFound = false)
     {
         $db = Loader::db();
@@ -297,6 +315,7 @@ class Version
 
         return $av;
     }
+    */
 
     public function getFileID()
     {
@@ -750,23 +769,17 @@ class Version
 
     public function getAttribute($ak, $mode = false)
     {
+        $handle = $ak;
         if (is_object($ak)) {
-            $akHandle = $ak->getAttributeKeyHandle();
-        } else {
-            $akHandle = $ak;
+            $handle = $ak->getAttributeKeyHandle();
         }
-
-        if (!isset($this->attributes[$akHandle . $mode])) {
-            $this->attributes[$akHandle . $mode] = false;
-            $ak = FileAttributeKey::getByHandle($akHandle);
-            if (is_object($ak)) {
-                $av = $this->getAttributeValueObject($ak);
-                if (is_object($av)) {
-                    $this->attributes[$akHandle . $mode] = $av->getValue($mode);
-                }
-            }
+        $attributes = array();
+        foreach($this->attributes as $attribute) {
+            $attributes[] = $attributes->getAttributeKey();
         }
-        return $this->attributes[$akHandle . $mode];
+        return array_filter($attributes, function($key) use ($handle) {
+            return $key->getAttributeKeyHandle() == $handle;
+        })[0];
     }
 
     public function rescanThumbnails()
