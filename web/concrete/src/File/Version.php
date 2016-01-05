@@ -112,7 +112,7 @@ class Version
     protected $fvExtension = null;
 
     /**
-     * @OneToMany(targetEntity="\Concrete\Core\Entity\File\Attribute",  mappedBy="version")
+     * @OneToMany(targetEntity="\Concrete\Core\Entity\File\AttributeValue",  mappedBy="version")
      * @JoinColumns({
      *   @JoinColumn(name="fID", referencedColumnName="fID"),
      *   @JoinColumn(name="fvID", referencedColumnName="fvID")
@@ -243,8 +243,7 @@ class Version
         $orm->flush();
 
         $av = new AttributeValue();
-        $av->setFileID($this->getFileID());
-        $av->setVersionID($this->getFileVersionID());
+        $av->setVersion($this);
         $av->setAttributeKey($ak);
         $av->setAttributeValue($value);
 
@@ -773,13 +772,11 @@ class Version
         if (is_object($ak)) {
             $handle = $ak->getAttributeKeyHandle();
         }
-        $attributes = array();
-        foreach($this->attributes as $attribute) {
-            $attributes[] = $attributes->getAttributeKey();
+        foreach($this->attributes as $value) {
+            if ($value->getAttributeKey()->getAttributeKeyHandle() == $handle) {
+                return $value->getAttributeValue();
+            }
         }
-        return array_filter($attributes, function($key) use ($handle) {
-            return $key->getAttributeKeyHandle() == $handle;
-        })[0];
     }
 
     public function rescanThumbnails()
